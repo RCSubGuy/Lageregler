@@ -71,14 +71,6 @@ int EEPROMTiefenreglerKd = 80;
 PID LagereglerPID(&LagereglerInput, &LagereglerOutput, &LagereglerSetpoint, LagereglerKp, LagereglerKi, LagereglerKd, DIRECT);
 PID TiefenreglerPID(&LagereglerInput, &TiefenraglerOutput, &TiefenraglerSetpoint, TiefenreglerKp, TiefenreglerKi, TiefenreglerKd, DIRECT);
 
-void ToggleInclinometer()
-{
-
-  digitalWrite(0, !digitalRead(0));
-  digitalWrite(1, !digitalRead(1));
-
-}
-
 void ServoSignal1Rising(void) {
   attachInterrupt(2, ServoSignal1Falling, FALLING);
   ServoSignal1StartTime = micros();
@@ -348,7 +340,6 @@ void DebugValueCallback()
 
 GetSerialValues();
 
-
  // Some Change
 #ifdef MYDEBUG_VALUE_PLOTTER
   Serial.print(ServoInputValues.Servo1Value);
@@ -476,7 +467,6 @@ void setup() {
 }
 
 void loop() {
-  ToggleInclinometer();
   
   ServoOutputValues = CalculateReaction(ServoInputValues, CompassValues);
   SetServoValues(ServoOutputValues);
