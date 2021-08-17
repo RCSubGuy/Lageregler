@@ -15,7 +15,6 @@
 
 #define MYDEBUG
 #define MYDEBUG_TIMECYCLE 200
-//#define MYDEBUG_TERMINAL_SCREEN
 #define MYDEBUG_VALUE_PLOTTER
 
 QMC5883LCompass compass;
@@ -388,53 +387,6 @@ GetSerialValues();
   Serial.print("leer");
   Serial.println(";");
 #endif
-
-#ifdef MYDEBUG_TERMINAL_SCREEN  
-  Serial.write(12);    // clear screen command
-
-  Serial.print("Servo Eingang 1 ");
-  Serial.println(ServoInputValues.Servo1Value);
-  Serial.print("Servo Eingang 2 ");
-  Serial.println(ServoInputValues.Servo2Value);
-  Serial.print("Servo Eingang 3 ");
-  Serial.println(ServoInputValues.Servo3Value);
-  Serial.print("Servo Eingang 4 ");
-  Serial.println(ServoInputValues.Servo4Value);
-
-  Serial.print("Servo Ausgang 1 ");
-  Serial.println(ServoOutputValues.Servo1Value);
-  Serial.print("Servo Ausgang 2 ");
-  Serial.println(ServoOutputValues.Servo2Value);
-  Serial.print("Servo Ausgang 3 ");
-  Serial.println(ServoOutputValues.Servo3Value);
-  Serial.print("Servo Ausgang 4 ");
-  Serial.println(ServoOutputValues.Servo4Value);
-
-//  Serial.print("Accelerometer Eingang X ");
-//  Serial.println(AccelerometerValues.x);
-//  Serial.print("Accelerometer Eingang Y ");
-//  Serial.println(AccelerometerValues.y);
-//  Serial.print("Accelerometer Eingang Z ");
-//  Serial.println(AccelerometerValues.z);
-//  Serial.print("Accelerometer Eingang Temperatur ");
-//  Serial.println(AccelerometerValues.temperatur);
-
-  Serial.print("Compass Azimuth ");
-  Serial.println(CompassValues.Azimuth);
-  Serial.print("Compass Bearing ");
-  Serial.println(CompassValues.Bearing);
-  Serial.print("Compass X ");
-  Serial.println(CompassValues.X);
-  Serial.print("Compass Y ");
-  Serial.println(CompassValues.Y);
-  Serial.print("Compass Z ");
-  Serial.println(CompassValues.Z);
-
-  Serial.print("Drucksensor ");
-  Serial.println(DepthValue);
-#endif
-//	Serial.print("COOL! I'm running on: ");
-//	Serial.println(millis());
 }
 
 void setup() {
