@@ -1,3 +1,5 @@
+#define FILTERSIZE 50
+
 struct AccelerometerValueContainer {
     int16_t x;
     int16_t y;
@@ -34,12 +36,6 @@ struct PositionValueContainer {
   float bearing;
   
 };
-
-#define FILTERSIZE 50
-
-
-
-
 
 int i = 0 ;
 int __X[FILTERSIZE];
