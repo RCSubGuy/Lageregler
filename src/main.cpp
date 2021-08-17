@@ -11,7 +11,7 @@
 #include <EEPROM.h>
 
 #include "main.h"
-#include"Konstrukte.h"
+#include "Konstrukte.h"
 
 #define MYDEBUG
 #define MYDEBUG_TIMECYCLE 200
@@ -451,7 +451,7 @@ void setup() {
   pinMode(3, INPUT);
   pinMode(4, INPUT);
   pinMode(5, INPUT);
-  
+
   Wire.begin();
   pwmController.resetDevices();       // Resets all PCA9685 devices on i2c line
   pwmController.init();               // Initializes module using default totem-pole driver mode, and default disabled phase balancer
