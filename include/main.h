@@ -9,3 +9,5 @@ void ServoSignal3Rising(void);
 
 void ServoSignal4Falling(void);
 void ServoSignal4Rising(void);
+
+void copyPIDValues(void);

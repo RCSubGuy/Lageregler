@@ -61,12 +61,12 @@ double TiefenraglerSetpoint, TiefenraglerInput, TiefenraglerOutput;
 double LagereglerKp=2, LagereglerKi=5, LagereglerKd=1;
 double TiefenreglerKp=2, TiefenreglerKi=5, TiefenreglerKd=1;
 
-int EEPROMLagereglerKp = 0;
-int EEPROMLagereglerKi = 16;
-int EEPROMLagereglerKd = 32;
-int EEPROMTiefenreglerKp = 48;
-int EEPROMTiefenreglerKi = 64;
-int EEPROMTiefenreglerKd = 80;
+double EEPROMLagereglerKp = 0;
+double EEPROMLagereglerKi = 16;
+double EEPROMLagereglerKd = 32;
+double EEPROMTiefenreglerKp = 48;
+double EEPROMTiefenreglerKi = 64;
+double EEPROMTiefenreglerKd = 80;
 
 PID LagereglerPID(&LagereglerInput, &LagereglerOutput, &LagereglerSetpoint, LagereglerKp, LagereglerKi, LagereglerKd, DIRECT);
 PID TiefenreglerPID(&LagereglerInput, &TiefenraglerOutput, &TiefenraglerSetpoint, TiefenreglerKp, TiefenreglerKi, TiefenreglerKd, DIRECT);
@@ -183,7 +183,6 @@ struct CompassValueContainer GetCompassValues(void)
   return _CompassValues;
 }
 
-
 void GetSerialValues(void)
 {
   if(Serial.available())
@@ -200,6 +199,7 @@ void GetSerialValues(void)
       double _KpValue = SerialCommand.toFloat();
       Serial.println(_KpValue);
       EEPROM.put(EEPROMLagereglerKp, _KpValue);
+      copyPIDValues();
     } 
 
     if(SerialCommand == "GetLagereglerKp")
@@ -216,6 +216,7 @@ void GetSerialValues(void)
       double _KiValue = SerialCommand.toFloat();
       Serial.println(_KiValue);
       EEPROM.put(EEPROMLagereglerKi, _KiValue);
+      copyPIDValues();
     } 
 
     if(SerialCommand == "GetLagereglerKi")
@@ -232,6 +233,7 @@ void GetSerialValues(void)
       double _KdValue = SerialCommand.toFloat();
       Serial.println(_KdValue);
       EEPROM.put(EEPROMLagereglerKd, _KdValue);
+      copyPIDValues();
     } 
 
     if(SerialCommand == "GetLagereglerKd")
@@ -248,6 +250,7 @@ void GetSerialValues(void)
       double _KpValue = SerialCommand.toFloat();
       Serial.println(_KpValue);
       EEPROM.put(EEPROMTiefenreglerKp, _KpValue);
+      copyPIDValues();
     } 
 
     if(SerialCommand == "GetTiefenreglerKp")
@@ -264,6 +267,7 @@ void GetSerialValues(void)
       double _KiValue = SerialCommand.toFloat();
       Serial.println(_KiValue);
       EEPROM.put(EEPROMTiefenreglerKd, _KiValue);
+      copyPIDValues();
     } 
 
     if(SerialCommand == "GetTiefenreglerKi")
@@ -280,6 +284,7 @@ void GetSerialValues(void)
       double _KdValue = SerialCommand.toFloat();
       Serial.println(_KdValue);
       EEPROM.put(EEPROMTiefenreglerKd, _KdValue);
+      copyPIDValues();
     } 
 
     if(SerialCommand == "GetTiefenreglerKd")
@@ -335,7 +340,7 @@ void DebugValueCallbackInitializer(void)
   Serial.println("Servo Eingang 1; Servo Eingang 2; Servo Eingang 3; Servo Eingang 4; Servo Ausgang 1; Servo Ausgang 2; Servo Ausgang 3; Servo Ausgang 4; Compass Azimuth; Compass Bearing; Compass X; Compass Y; Compass Z; Drucksensor");
 }
 
-void DebugValueCallback()
+void DebugValueCallback(void)
 {
 
 GetSerialValues();
@@ -378,6 +383,17 @@ GetSerialValues();
   Serial.print("leer");
   Serial.println(";");
 #endif
+}
+
+void copyPIDValues(void)
+{
+LagereglerKp = EEPROMLagereglerKp;
+LagereglerKi = EEPROMLagereglerKi;
+LagereglerKd = EEPROMLagereglerKd;
+
+TiefenreglerKp = EEPROMTiefenreglerKp;
+TiefenreglerKi = EEPROMTiefenreglerKi;
+TiefenreglerKd = EEPROMTiefenreglerKd;
 }
 
 void setup() {
@@ -454,6 +470,8 @@ void setup() {
   adc->adc0->setResolution(16);
   adc->adc0->setConversionSpeed(ADC_CONVERSION_SPEED::HIGH_SPEED);
   adc->adc0->setSamplingSpeed(ADC_SAMPLING_SPEED::MED_SPEED); 
+
+  copyPIDValues();
 
   LagereglerInput = 0;
   LagereglerSetpoint = 0;
