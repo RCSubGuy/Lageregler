@@ -14,9 +14,13 @@ void copyPIDValues(void);
 void DebugValueCallback(void);
 void DebugValueCallbackInitializer(void);
 void GetValuesCallback(void);
-struct ServoValueContainer CalculateReaction(struct ServoValueContainer _ServoInputValues,  struct CompassValueContainer _CompassValues);
+struct ServoValueContainer CalculateReaction(struct ServoValueContainer _ServoInputValues,  struct AccelerometerValueContainer _AccelerometerValues);
 void GetSerialValues(void);
 struct CompassValueContainer GetCompassValues(void);
 struct AccelerometerValueContainer GetGyroValues(void);
 void SetServoValues(struct ServoValueContainer _ServoOutputValues);
 void GetServoValues(void);
+
+void PISTONTANK_INC_RISING(void);
+void PISTONTANK_INC_FALLING(void);
+void SetupPistonTankIncSensor(void);

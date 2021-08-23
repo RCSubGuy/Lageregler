@@ -9,6 +9,7 @@
 #include <Thread.h>
 #include <PID_v1.h>
 #include <EEPROM.h>
+#include "HoTTServer.h"
 
 #include "main.h"
 #include "Konstrukte.h"
@@ -20,6 +21,7 @@
 QMC5883LCompass compass;
 PCA9685 pwmController(B010101);           // Library using Wire1 @400kHz, and B101010 (A5-A0) i2c address
 ADXL345 adxl; //variable adxl is an instance of the ADXL345 library
+HoTTServer server;
 
 // Testing our second servo has found that -90° sits at 128, 0° at 324, and +90° at 526.
 // Since 324 isn't precisely in the middle, a cubic spline will be used to smoothly
@@ -39,7 +41,6 @@ ADC *adc = new ADC(); // adc object;
 
 struct ServoValueContainer ServoInputValues;
 struct ServoValueContainer ServoOutputValues;
-struct CompassValueContainer CompassValues;
 struct AccelerometerValueContainer AccelerometerValues; 
 struct RoutineRuntimeContainer RoutineRuntimeValues;
 
@@ -48,10 +49,16 @@ int CompassCorrectionValueX = 760;
 int CompassCorrectionValueY = -808;
 int CompassCorrectionValueZ = -945;
 
+volatile int PistontankIncValue = 0;
+
 volatile int ServoSignal1StartTime;
 volatile int ServoSignal2StartTime;
 volatile int ServoSignal3StartTime;
 volatile int ServoSignal4StartTime;
+volatile bool ServoSignal1ActivityMarker;
+volatile bool ServoSignal2ActivityMarker;
+volatile bool ServoSignal3ActivityMarker;
+volatile bool ServoSignal4ActivityMarker;
 
 //Define Variables we'll be connecting to
 double LagereglerSetpoint, LagereglerInput, LagereglerOutput;
@@ -71,24 +78,49 @@ double EEPROMTiefenreglerKd = 80;
 PID LagereglerPID(&LagereglerInput, &LagereglerOutput, &LagereglerSetpoint, LagereglerKp, LagereglerKi, LagereglerKd, DIRECT);
 PID TiefenreglerPID(&LagereglerInput, &TiefenraglerOutput, &TiefenraglerSetpoint, TiefenreglerKp, TiefenreglerKi, TiefenreglerKd, DIRECT);
 
+void PISTONTANK_INC_RISING(void)
+{
+  PistontankIncValue++;
+  attachInterrupt(6, PISTONTANK_INC_FALLING, FALLING);
+}
+
+void PISTONTANK_INC_FALLING(void)
+{
+  attachInterrupt(6, PISTONTANK_INC_RISING, RISING);
+}
+
+void SetupPistonTankIncSensor(void)
+{
+  attachInterrupt(6, PISTONTANK_INC_RISING, RISING);
+}
+
+
 void ServoSignal1Rising(void) {
   attachInterrupt(2, ServoSignal1Falling, FALLING);
   ServoSignal1StartTime = micros();
+
+  ServoSignal1ActivityMarker = 1;
 }
 
 void ServoSignal2Rising(void) {
   attachInterrupt(3, ServoSignal2Falling, FALLING);
   ServoSignal2StartTime = micros();
+
+  ServoSignal2ActivityMarker = 1;
 }
 
 void ServoSignal3Rising(void) {
   attachInterrupt(4, ServoSignal3Falling, FALLING);
   ServoSignal3StartTime = micros();
+
+  ServoSignal3ActivityMarker = 1;
 }
 
 void ServoSignal4Rising(void) {
   attachInterrupt(5, ServoSignal4Falling, FALLING);
   ServoSignal4StartTime = micros();
+
+  ServoSignal4ActivityMarker = 1;
 }
 
 void ServoSignal1Falling(void) {
@@ -118,16 +150,19 @@ void ServoSignal4Falling(void) {
 void GetServoValues(void)
 {
   int start_time = micros();
-    
-  attachInterrupt(2, ServoSignal1Rising, RISING);
-  attachInterrupt(3, ServoSignal2Rising, RISING);
-  attachInterrupt(4, ServoSignal3Rising, RISING);
-  attachInterrupt(5, ServoSignal4Rising, RISING);
+  if(ServoSignal1ActivityMarker == 0) ServoInputValues.Servo1Value = 0;
+  if(ServoSignal2ActivityMarker == 0) ServoInputValues.Servo2Value = 0;
+  if(ServoSignal3ActivityMarker == 0) ServoInputValues.Servo3Value = 0;
+  if(ServoSignal4ActivityMarker == 0) ServoInputValues.Servo4Value = 0;
 
- // _ServoInputValues.Servo1Value = pulseIn(2, HIGH);
- // _ServoInputValues.Servo2Value = pulseIn(3, HIGH);
- // _ServoInputValues.Servo3Value = pulseIn(4, HIGH);
- // _ServoInputValues.Servo4Value = pulseIn(5, HIGH);
+  attachInterrupt(2, ServoSignal1Rising, RISING);
+  ServoSignal1ActivityMarker = 0;
+  attachInterrupt(3, ServoSignal2Rising, RISING);
+  ServoSignal2ActivityMarker = 0;
+  attachInterrupt(4, ServoSignal3Rising, RISING);
+  ServoSignal3ActivityMarker = 0;
+  attachInterrupt(5, ServoSignal4Rising, RISING);
+  ServoSignal4ActivityMarker = 0;
 
   RoutineRuntimeValues.GetServoValuesRuntime = micros() - start_time;   
 }
@@ -165,22 +200,6 @@ struct AccelerometerValueContainer GetGyroValues(void)
   _AccelerometerValues.roll = atan(-1 * x / sqrt(pow(y, 2) + pow(z, 2))) * 180 / PI;
 
   return _AccelerometerValues;
-}
-
-struct CompassValueContainer GetCompassValues(void)
-{
-  int start_time = micros();
-  struct CompassValueContainer _CompassValues;
-  
-  compass.read();
-  _CompassValues.X = compass.getX() - CompassCorrectionValueX;
-  _CompassValues.Y = compass.getY() - CompassCorrectionValueY;
-  _CompassValues.Z = compass.getZ() - CompassCorrectionValueZ;
-
-  _CompassValues = CompassValuesAverageFilter(_CompassValues);
-
-  RoutineRuntimeValues.GetCompassValuesRuntime = micros() - start_time;
-  return _CompassValues;
 }
 
 void GetSerialValues(void)
@@ -298,13 +317,32 @@ void GetSerialValues(void)
   }
 }
 
+void SetPistonMotorSpeed(float _SetValue)
+{
+  _SetValue = _SetValue * 2.83333;
+  if(_SetValue < -255) _SetValue = -255;
+  if(_SetValue >  255) _SetValue =  255;
+
+  if(_SetValue > 0)
+  {
+    analogWrite(1, 0);
+    analogWrite(0, (int)_SetValue);
+  }
+  else
+  {
+    _SetValue = _SetValue * -1;
+    analogWrite(0, 0);
+    analogWrite(1, (int)_SetValue);
+  }
+}
+
 /****************************************************************************************/
 /*                                                                                      */
 /*                      Hauptberechnung der Lageregelung                                */
 /*                                                                                      */
 /****************************************************************************************/
 
-struct ServoValueContainer CalculateReaction(struct ServoValueContainer _ServoInputValues,  struct CompassValueContainer _CompassValues)
+struct ServoValueContainer CalculateReaction(struct ServoValueContainer _ServoInputValues,  struct AccelerometerValueContainer _AccelerometerValues)
 {
   int start_time = micros();
 
@@ -313,7 +351,7 @@ struct ServoValueContainer CalculateReaction(struct ServoValueContainer _ServoIn
     if(_ServoInputValues.Servo1Value > -2)
     {
       float temp;
-      temp = (float)AccelerometerValues.pitch * 10;
+      temp = (float)_AccelerometerValues.pitch * 2.5;
 
       if(temp > 90) temp = 90;
       if(temp < -90) temp = -90;
@@ -328,10 +366,10 @@ void GetValuesCallback(void)
 {
   int start_time = micros();
   GetServoValues();
-  //CompassValues = GetCompassValues();
   AccelerometerValues = GetGyroValues();
   float value = adc->adc0->analogRead(A0);
   DepthValue = value; 
+  SetPistonMotorSpeed(ServoInputValues.Servo4Value);
   RoutineRuntimeValues.GetValuesCallbackRuntime = micros() - start_time;
 }
 
@@ -396,29 +434,8 @@ TiefenreglerKi = EEPROMTiefenreglerKi;
 TiefenreglerKd = EEPROMTiefenreglerKd;
 }
 
-void setup() {
-  // put your setup code here, to run once:
-  Serial.begin(57600); 
-
-  DebugThread.onRun(DebugValueCallback);
-	DebugThread.setInterval(MYDEBUG_TIMECYCLE);
-
-  GetValuesThread.onRun(GetValuesCallback);
-  GetValuesThread.setInterval(21);
-
-  pinMode(2, INPUT);
-  pinMode(3, INPUT);
-  pinMode(4, INPUT);
-  pinMode(5, INPUT);
-
-  Wire.begin();
-  pwmController.resetDevices();       // Resets all PCA9685 devices on i2c line
-  pwmController.init();               // Initializes module using default totem-pole driver mode, and default disabled phase balancer
-  pwmController.setPWMFreqServo();    // 50Hz provides standard 20ms servo phase length
-  //pwmController.printModuleInfo();
-
-  compass.init();
-
+void initGyro(void)
+{
   adxl.powerOn();
 
   //set activity/ inactivity thresholds (0-255)
@@ -465,16 +482,48 @@ void setup() {
   adxl.setInterrupt( ADXL345_INT_FREE_FALL_BIT,  1);
   adxl.setInterrupt( ADXL345_INT_ACTIVITY_BIT,   1);
   adxl.setInterrupt( ADXL345_INT_INACTIVITY_BIT, 1);
+}
+
+void setup() 
+{
+  // put your setup code here, to run once:
+  Serial.begin(57600); 
+
+  DebugThread.onRun(DebugValueCallback);
+	DebugThread.setInterval(MYDEBUG_TIMECYCLE);
+
+  GetValuesThread.onRun(GetValuesCallback);
+  GetValuesThread.setInterval(21);
+
+  pinMode(2, INPUT);                  // Servo Eingang 1
+  pinMode(3, INPUT);                  // Servo Eingang 2
+  pinMode(4, INPUT);                  // Servo Eingang 3
+  pinMode(5, INPUT);                  // Servo Eingang 4
+
+  pinMode(6, INPUT);                  // Kolbentank Incrementalgeber
+
+  pinMode(0, OUTPUT);                 // Kolbentank Motor Treiber
+  pinMode(1, OUTPUT);                 // Kolbentank Motor Treiber
+
+  Wire.begin();
+  pwmController.resetDevices();       // Resets all PCA9685 devices on i2c line
+  pwmController.init();               // Initializes module using default totem-pole driver mode, and default disabled phase balancer
+  pwmController.setPWMFreqServo();    // 50Hz provides standard 20ms servo phase length
+
+  initGyro();
 
   adc->adc0->setAveraging(16);
   adc->adc0->setResolution(16);
   adc->adc0->setConversionSpeed(ADC_CONVERSION_SPEED::HIGH_SPEED);
   adc->adc0->setSamplingSpeed(ADC_SAMPLING_SPEED::MED_SPEED); 
 
+  server.registerModule(HoTTServerVario);
+	server.start();
+
   copyPIDValues();
 
-  LagereglerInput = 0;
-  LagereglerSetpoint = 0;
+  LagereglerInput = 180;
+  LagereglerSetpoint = 180;
   LagereglerPID.SetMode(AUTOMATIC);
 
 #ifdef MYDEBUG
@@ -484,9 +533,10 @@ void setup() {
 
 }
 
-void loop() {
+void loop() 
+{
   
-  ServoOutputValues = CalculateReaction(ServoInputValues, CompassValues);
+  ServoOutputValues = CalculateReaction(ServoInputValues, AccelerometerValues);
   SetServoValues(ServoOutputValues);
 
 // checks if thread should run
