@@ -4,7 +4,6 @@
 #include <Servo.h>
 #include "PCA9685.h"
 #include <SPI.h>
-#include <QMC5883LCompass.h>
 #include <ADXL345.h>
 #include <Thread.h>
 #include <PID_v1.h>
@@ -13,15 +12,17 @@
 
 #include "main.h"
 #include "Konstrukte.h"
+#include "Calculations.h"
 
 #define MYDEBUG
 #define MYDEBUG_TIMECYCLE 200
 #define MYDEBUG_VALUE_PLOTTER
 
-QMC5883LCompass compass;
 PCA9685 pwmController(B010101);           // Library using Wire1 @400kHz, and B101010 (A5-A0) i2c address
 ADXL345 adxl; //variable adxl is an instance of the ADXL345 library
 HoTTServer server;
+ADC *adc = new ADC(); // adc object;
+Tendencies *PitchTendecie = new Tendencies();
 
 // Testing our second servo has found that -90° sits at 128, 0° at 324, and +90° at 526.
 // Since 324 isn't precisely in the middle, a cubic spline will be used to smoothly
@@ -37,7 +38,7 @@ PCA9685_ServoEval ServoOutput4(128,324,526);
 Thread DebugThread = Thread();
 Thread GetValuesThread = Thread();
 
-ADC *adc = new ADC(); // adc object;
+
 
 struct ServoValueContainer ServoInputValues;
 struct ServoValueContainer ServoOutputValues;
@@ -48,8 +49,6 @@ float DepthValue;
 int CompassCorrectionValueX = 760;
 int CompassCorrectionValueY = -808;
 int CompassCorrectionValueZ = -945;
-
-volatile int PistontankIncValue = 0;
 
 volatile int ServoSignal1StartTime;
 volatile int ServoSignal2StartTime;
@@ -77,23 +76,6 @@ double EEPROMTiefenreglerKd = 80;
 
 PID LagereglerPID(&LagereglerInput, &LagereglerOutput, &LagereglerSetpoint, LagereglerKp, LagereglerKi, LagereglerKd, DIRECT);
 PID TiefenreglerPID(&LagereglerInput, &TiefenraglerOutput, &TiefenraglerSetpoint, TiefenreglerKp, TiefenreglerKi, TiefenreglerKd, DIRECT);
-
-void PISTONTANK_INC_RISING(void)
-{
-  PistontankIncValue++;
-  attachInterrupt(6, PISTONTANK_INC_FALLING, FALLING);
-}
-
-void PISTONTANK_INC_FALLING(void)
-{
-  attachInterrupt(6, PISTONTANK_INC_RISING, RISING);
-}
-
-void SetupPistonTankIncSensor(void)
-{
-  attachInterrupt(6, PISTONTANK_INC_RISING, RISING);
-}
-
 
 void ServoSignal1Rising(void) {
   attachInterrupt(2, ServoSignal1Falling, FALLING);

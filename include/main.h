@@ -20,7 +20,3 @@ struct CompassValueContainer GetCompassValues(void);
 struct AccelerometerValueContainer GetGyroValues(void);
 void SetServoValues(struct ServoValueContainer _ServoOutputValues);
 void GetServoValues(void);
-
-void PISTONTANK_INC_RISING(void);
-void PISTONTANK_INC_FALLING(void);
-void SetupPistonTankIncSensor(void);
