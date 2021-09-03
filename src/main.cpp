@@ -13,6 +13,7 @@
 #include "main.h"
 #include "Konstrukte.h"
 #include "Calculations.h"
+#include "OpenServo.h"
 
 #define MYDEBUG
 #define MYDEBUG_TIMECYCLE 200
@@ -23,6 +24,8 @@ ADXL345 adxl; //variable adxl is an instance of the ADXL345 library
 HoTTServer server;
 ADC *adc = new ADC(); // adc object;
 Tendencies *PitchTendecie = new Tendencies();
+OpenServo *ServoInput1 = new OpenServo();
+//OpenServo *ServoInput2 = new OpenServo();
 
 // Testing our second servo has found that -90° sits at 128, 0° at 324, and +90° at 526.
 // Since 324 isn't precisely in the middle, a cubic spline will be used to smoothly
@@ -37,8 +40,6 @@ PCA9685_ServoEval ServoOutput4(128,324,526);
 
 Thread DebugThread = Thread();
 Thread GetValuesThread = Thread();
-
-
 
 struct ServoValueContainer ServoInputValues;
 struct ServoValueContainer ServoOutputValues;
@@ -147,6 +148,16 @@ void GetServoValues(void)
   ServoSignal4ActivityMarker = 0;
 
   RoutineRuntimeValues.GetServoValuesRuntime = micros() - start_time;   
+}
+
+void GetOpenServoValues(void)
+{
+  int v1;
+  //int v2;
+  v1 = ServoInput1->getValue();
+  //v2 = ServoInput2->getValue();
+  ServoInputValues.Servo1Value = (float)v1;
+  //ServoInputValues.Servo2Value = (float)v2;
 }
 
 void SetServoValues(struct ServoValueContainer _ServoOutputValues)
@@ -347,7 +358,8 @@ struct ServoValueContainer CalculateReaction(struct ServoValueContainer _ServoIn
 void GetValuesCallback(void)
 {
   int start_time = micros();
-  GetServoValues();
+  //GetServoValues();
+  GetOpenServoValues();
   AccelerometerValues = GetGyroValues();
   float value = adc->adc0->analogRead(A0);
   DepthValue = value; 
@@ -507,6 +519,9 @@ void setup()
   LagereglerInput = 180;
   LagereglerSetpoint = 180;
   LagereglerPID.SetMode(AUTOMATIC);
+
+  ServoInput1->init(2, "Servoeingang 1 ");
+  //ServoInput2->init(3, "Servoeingang 2 ");
 
 #ifdef MYDEBUG
   DebugValueCallbackInitializer();
